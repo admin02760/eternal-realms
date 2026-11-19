@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#101a22">
+<title>ETERNAL REALMS — İlk Prototip</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{--gold:#e8bd67;--panel:rgba(12,22,30,.91);--line:rgba(232,189,103,.35);--text:#f3ead7}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101a22;color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;touch-action:none}
+#game{position:fixed;inset:0}canvas{display:block;width:100%;height:100%}
+.hud{position:fixed;z-index:3;pointer-events:none}
+.top{top:env(safe-area-inset-top,8px);left:10px;right:10px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px #0006;backdrop-filter:blur(8px)}
+.player{padding:9px 11px;min-width:175px}.name{font-weight:900;letter-spacing:1.5px;color:var(--gold);font-size:12px}.level{font-size:11px;color:#d6d1c5;margin:2px 0 6px}
+.bar{height:7px;background:#26343b;border-radius:8px;overflow:hidden;margin-top:4px}.fill{height:100%;width:100%;border-radius:8px}.hp{background:linear-gradient(90deg,#b83232,#f16a54)}.mp{background:linear-gradient(90deg,#2869bd,#59b5e8)}.xp{background:linear-gradient(90deg,#b78a30,#f2d27b)}
+.stats{padding:9px 11px;text-align:right;font-size:12px;min-width:95px}.gold{color:#f5d47f;font-weight:800}
+.quest{top:105px;left:10px;padding:8px 10px;font-size:11px;max-width:190px;line-height:1.4}.quest b{color:var(--gold)}
+.bottom{left:10px;right:10px;bottom:calc(12px + env(safe-area-inset-bottom,0px));display:flex;justify-content:space-between;align-items:flex-end}
+.joy-wrap{width:126px;height:126px;position:relative;pointer-events:auto}.joy-base{position:absolute;inset:9px;border-radius:50%;background:#0a141dbb;border:1px solid #d5b36b88;box-shadow:inset 0 0 25px #0008}.joy-stick{position:absolute;width:48px;height:48px;left:39px;top:39px;border-radius:50%;background:linear-gradient(145deg,#e7c777,#92703b);border:2px solid #f7e5ac;box-shadow:0 4px 12px #0009}
+.actions{display:flex;gap:9px;align-items:flex-end;pointer-events:auto}.action{border:1px solid var(--line);color:#fff;background:linear-gradient(145deg,#344a54,#14232c);border-radius:50%;width:62px;height:62px;font-weight:900;font-size:11px;box-shadow:0 5px 15px #0008}.action.attack{width:76px;height:76px;background:linear-gradient(145deg,#a94a35,#52221d);border-color:#f2a17a;font-size:13px}.action:active{transform:scale(.94)}
+.menu{position:fixed;z-index:5;right:10px;top:104px;display:flex;flex-direction:column;gap:7px;pointer-events:auto}.menu button{background:var(--panel);border:1px solid var(--line);color:var(--text);padding:8px 10px;border-radius:9px;font-size:11px}
+.modal{position:fixed;z-index:10;inset:0;background:#0009;display:none;align-items:center;justify-content:center;padding:18px}.modal.show{display:flex}.modal-card{width:min(420px,100%);padding:18px}.modal h2{margin:0 0 8px;color:var(--gold);font-size:18px}.modal p{font-size:13px;line-height:1.5;color:#ded8c9}.close{float:right;background:#263740;color:white;border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+.toast{position:fixed;z-index:8;left:50%;top:46%;transform:translate(-50%,-50%);background:#101b22ee;border:1px solid var(--gold);padding:10px 16px;border-radius:12px;font-weight:800;color:#ffe2a0;opacity:0;transition:opacity .2s;pointer-events:none;text-align:center}
+.toast.show{opacity:1}
+.hint{position:fixed;z-index:2;bottom:145px;left:50%;transform:translateX(-50%);font-size:10px;color:#f4e9d0aa;white-space:nowrap;pointer-events:none}
+@media(min-width:700px){.player{min-width:210px}.quest{top:115px}.menu{top:115px}.joy-wrap{width:145px;height:145px}.action{width:70px;height:70px}.action.attack{width:86px;height:86px}}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div class="hud top">
+  <div class="panel player">
+    <div class="name">ETERNAL REALMS</div>
+    <div class="level" id="levelText">Savaşçı · Seviye 1</div>
+    <div style="font-size:10px">HP <span id="hpText">100/100</span></div><div class="bar"><div id="hpBar" class="fill hp"></div></div>
+    <div style="font-size:10px;margin-top:4px">MP <span id="mpText">50/50</span></div><div class="bar"><div id="mpBar" class="fill mp"></div></div>
+    <div style="font-size:10px;margin-top:4px">XP <span id="xpText">0/100</span></div><div class="bar"><div id="xpBar" class="fill xp" style="width:0%"></div></div>
+  </div>
+  <div class="panel stats"><div>🪙 <span class="gold" id="goldText">100</span></div><div style="font-size:10px;color:#c8c1b1;margin-top:5px">BAŞLANGIÇ VADİSİ</div></div>
+</div>
+<div class="hud quest panel"><b>İLK GÖREV</b><br>3 Orman Kurdu yen.<br><span id="questProgress">İlerleme: 0 / 3</span></div>
+<div class="menu">
+  <button id="inventoryBtn">🎒 Envanter</button>
+  <button id="helpBtn">❔ Yardım</button>
+</div>
+<div class="hint">Sol joystick: hareket · SALDIR: yakındaki canavara vur</div>
+<div class="hud bottom">
+  <div class="joy-wrap" id="joy"><div class="joy-base"></div><div class="joy-stick" id="stick"></div></div>
+  <div class="actions">
+    <button class="action" id="potionBtn">İKSİR<br>🧪</button>
+    <button class="action attack" id="attackBtn">⚔<br>SALDIR</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<div class="modal" id="modal"><div class="modal-card panel"><button class="close" id="closeModal">Kapat</button><h2 id="modalTitle">Envanter</h2><div id="modalBody"></div></div></div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); try { tg.setHeaderColor('#101a22'); tg.setBackgroundColor('#101a22'); } catch(e){} }
+
+const mount = document.getElementById('game');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x8db2a5);
+scene.fog = new THREE.Fog(0x8db2a5, 23, 58);
+const camera = new THREE.OrthographicCamera(-12,12,8,-8,.1,100);
+camera.position.set(12,16,12); camera.lookAt(0,0,0);
+const renderer = new THREE.WebGLRenderer({antialias:true, powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.6)); renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+mount.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xe4f4ff,0x53604a,2.0));
+const sun = new THREE.DirectionalLight(0xffe2b0,2.3); sun.position.set(-8,15,7); sun.castShadow=true; sun.shadow.mapSize.set(1024,1024); scene.add(sun);
+
+const mat=(color,roughness=.85)=>new THREE.MeshStandardMaterial({color,roughness});
+const groundMat=mat(0x557b55), pathMat=mat(0x9b8969), stoneMat=mat(0x65716e), trunkMat=mat(0x65452e), leafMat=mat(0x285b42);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(100,100),groundMat); ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground);
+const grid=new THREE.GridHelper(60,60,0x77936a,0x77936a); grid.position.y=.015; grid.material.transparent=true; grid.material.opacity=.13; scene.add(grid);
+// Winding path
+const path=new THREE.Mesh(new THREE.PlaneGeometry(5,48),pathMat); path.rotation.x=-Math.PI/2; path.position.set(0,.025,-3); path.receiveShadow=true; scene.add(path);
+function box(parent,w,h,d,material,x,y,z){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m}
+function tree(x,z,s=1){const g=new THREE.Group();g.position.set(x,0,z);box(g,.34,1.6,.34,trunkMat,0,.8,0);const crown=new THREE.Mesh(new THREE.ConeGeometry(.95,2.1,7),leafMat);crown.position.y=2.2;crown.castShadow=true;g.add(crown);scene.add(g)}
+for(let i=0;i<34;i++){let x=(Math.random()-.5)*38,z=(Math.random()-.5)*42;if(Math.abs(x)>3.5)tree(x,z,.8+Math.random()*.5)}
+// Ruined stones and portal
+for(let i=0;i<7;i++){let a=i/7*Math.PI*2;let r=5.8;let p=box(scene,.6,1.6,.7,stoneMat,Math.cos(a)*r,.8,Math.sin(a)*r);p.rotation.y=a}
+const portal=new THREE.Group();portal.position.set(0,0,-10);scene.add(portal);
+const ring=new THREE.Mesh(new THREE.TorusGeometry(1.6,.18,10,32),mat(0x3aa6b4,.35));ring.position.y=2.2;ring.castShadow=true;portal.add(ring);
+const portalGlow=new THREE.PointLight(0x39c7d7,3,9);portalGlow.position.y=2.2;portal.add(portalGlow);
+box(portal,.35,2.2,.35,stoneMat,-1.65,1.1,0);box(portal,.35,2.2,.35,stoneMat,1.65,1.1,0);box(portal,3.6,.35,.45,stoneMat,0,3.25,0);
+
+function makeWarrior(){
+ const g=new THREE.Group();
+ const armor=mat(0x315a75),gold=mat(0xd0a34d),skin=mat(0xe1b28a),dark=mat(0x27313a),blade=mat(0xc9d9dc,.35);
+ box(g,.9,1.15,.55,armor,0,1.25,0);
+ box(g,.72,.25,.58,gold,0,1.82,0);
+ const head=new THREE.Mesh(new THREE.SphereGeometry(.34,12,10),skin);head.position.y=2.12;head.castShadow=true;g.add(head);
+ const helm=new THREE.Mesh(new THREE.ConeGeometry(.4,.65,5),gold);helm.position.y=2.55;helm.castShadow=true;g.add(helm);
+ box(g,.24,.9,.28,armor,-.62,1.25,0);box(g,.24,.9,.28,armor,.62,1.25,0);
+ box(g,.32,.85,.38,dark,-.28,.42,0);box(g,.32,.85,.38,dark,.28,.42,0);
+ const cape=box(g,.72,1.1,.12,mat(0x8d3030),0,1.28,.36);cape.rotation.x=-.08;
+ const sword=box(g,.12,1.35,.12,blade,.83,1.25,0);sword.rotation.z=-.28;
+ const guard=box(g,.55,.12,.16,gold,.83,.72,0);guard.rotation.z=-.28;
+ g.userData.sword=sword;return g;
+}
+const player=makeWarrior();player.position.set(0,0,3);scene.add(player);
+const monsters=[];
+function makeWolf(x,z){
+ const g=new THREE.Group();const fur=mat(0x687078),darkFur=mat(0x343d45),eye=mat(0xff5540,.3);
+ const body=new THREE.Mesh(new THREE.BoxGeometry(1.25,.65,.55),fur);body.position.y=.72;body.castShadow=true;g.add(body);
+ const head=new THREE.Mesh(new THREE.BoxGeometry(.55,.5,.5),fur);head.position.set(.65,.95,0);head.castShadow=true;g.add(head);
+ for(const zz of [-.17,.17]){const ear=new THREE.Mesh(new THREE.ConeGeometry(.13,.38,4),darkFur);ear.position.set(.63,1.32,zz);g.add(ear);const e=new THREE.Mesh(new THREE.SphereGeometry(.055,8,8),eye);e.position.set(.91,1.03,zz*1.5);g.add(e)}
+ for(const xx of [-.4,.4])for(const zz of [-.18,.18])box(g,.16,.5,.16,darkFur,xx,.28,zz);
+ g.position.set(x,0,z);scene.add(g);
+ const bar=new THREE.Group();const bg=new THREE.Mesh(new THREE.PlaneGeometry(1.2,.12),mat(0x321d1d));bg.position.y=1.75;bar.add(bg);const fg=new THREE.Mesh(new THREE.PlaneGeometry(1.1,.07),mat(0xc74738));fg.position.set(0,1.76,.01);bar.add(fg);g.add(bar);
+ const m={group:g,hp:45,max:45,bar:fg,alive:true,respawn:0,attackTimer:0};monsters.push(m);return m;
+}
+makeWolf(3,-1);makeWolf(-4,-3);makeWolf(4,-7);makeWolf(-5,4);makeWolf(1,-13);
+const state={level:1,xp:0,xpNeed:100,hp:100,maxHp:100,mp:50,maxMp:50,gold:100,kills:0,potions:3,attackCooldown:0,moveX:0,moveZ:0,keys:{}};
+const $=id=>document.getElementById(id);
+function ui(){
+ $('levelText').textContent=`Savaşçı · Seviye ${state.level}`;
+ $('hpText').textContent=`${state.hp}/${state.maxHp}`;$('mpText').textContent=`${state.mp}/${state.maxMp}`;$('xpText').textContent=`${state.xp}/${state.xpNeed}`;
+ $('hpBar').style.width=(state.hp/state.maxHp*100)+'%';$('mpBar').style.width=(state.mp/state.maxMp*100)+'%';$('xpBar').style.width=(state.xp/state.xpNeed*100)+'%';
+ $('goldText').textContent=state.gold;$('questProgress').textContent=`İlerleme: ${Math.min(state.kills,3)} / 3`;
+}
+let toastTimer;
+function toast(s){$('toast').textContent=s;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),1500)}
+function gainXP(n){state.xp+=n;while(state.xp>=state.xpNeed){state.xp-=state.xpNeed;state.level++;state.xpNeed=Math.round(state.xpNeed*1.35);state.maxHp+=15;state.hp=state.maxHp;state.maxMp+=5;state.mp=state.maxMp;toast('SEVİYE ATLADIN! Seviye '+state.level)}ui()}
+function attack(){
+ if(state.attackCooldown>0)return;state.attackCooldown=.55;
+ player.userData.sword.rotation.z=-1.05;setTimeout(()=>player.userData.sword.rotation.z=-.28,160);
+ let target=null,dist=3.2;
+ for(const m of monsters){if(!m.alive)continue;const d=player.position.distanceTo(m.group.position);if(d<dist){dist=d;target=m}}
+ if(!target){toast('Yakında hedef yok');return}
+ const damage=18+state.level*2;target.hp-=damage;target.bar.scale.x=Math.max(.001,target.hp/target.max);target.bar.position.x=-(1.1-target.bar.scale.x*1.1)/2;
+ target.group.rotation.y=Math.atan2(player.position.x-target.group.position.x,player.position.z-target.group.position.z);
+ if(target.hp<=0){target.alive=false;target.group.visible=false;target.respawn=8;state.kills++;state.gold+=12;gainXP(35);toast('Kurt yenildi! +12 altın');}
+ else toast(`${damage} hasar!`);
+}
+$('attackBtn').addEventListener('pointerdown',e=>{e.preventDefault();attack()});
+$('potionBtn').addEventListener('pointerdown',e=>{e.preventDefault();if(state.potions<=0){toast('İksir kalmadı');return}if(state.hp===state.maxHp){toast('Canın zaten dolu');return}state.potions--;state.hp=Math.min(state.maxHp,state.hp+45);ui();toast('Can iksiri kullanıldı')});
+function openModal(title,body){$('modalTitle').textContent=title;$('modalBody').innerHTML=body;$('modal').classList.add('show')}
+$('inventoryBtn').onclick=()=>openModal('Envanter',`<p>🧪 Can iksiri: <b>${state.potions}</b></p><p>⚔️ Başlangıç kılıcı: <b>+0</b></p><p>🛡️ Savaşçı zırhı: <b>Temel</b></p><p>🪙 Altın: <b>${state.gold}</b></p><p style="color:#c8b98e">Bu prototipte eşyalar yerel oyun durumunda tutulur.</p>`);
+$('helpBtn').onclick=()=>openModal('Nasıl oynanır?',`<p><b>Hareket:</b> Sol taraftaki joystick'i sürükle.</p><p><b>Saldırı:</b> Yakındaki orman kurduna yaklaş ve SALDIR düğmesine bas.</p><p><b>İksir:</b> Canın azalınca iksir kullan.</p><p><b>Gelişim:</b> Canavar keserek XP ve altın kazan. XP dolunca seviye atlarsın.</p><p><b>Not:</b> Bu ilk oynanabilir prototiptir; çevrimiçi hesap ve çok oyunculu sistem sonraki aşamada bağlanacak.</p>`);
+$('closeModal').onclick=()=>$('modal').classList.remove('show');$('modal').addEventListener('pointerdown',e=>{if(e.target===$('modal'))$('modal').classList.remove('show')});
+
+// Virtual joystick
+const joy=$('joy'),stick=$('stick');let joyActive=false,joyId=null,joyCenter={x:0,y:0};
+function joyStart(e){e.preventDefault();joyActive=true;joyId=e.pointerId;joy.setPointerCapture(joyId);const r=joy.getBoundingClientRect();joyCenter={x:r.left+r.width/2,y:r.top+r.height/2};joyMove(e)}
+function joyMove(e){if(!joyActive||e.pointerId!==joyId)return;const dx=e.clientX-joyCenter.x,dy=e.clientY-joyCenter.y;const len=Math.hypot(dx,dy),max=39;const k=Math.min(1,max/(len||1));const x=dx*k,y=dy*k;stick.style.transform=`translate(${x}px,${y}px)`;state.moveX=x/max;state.moveZ=y/max}
+function joyEnd(e){if(e.pointerId!==joyId)return;joyActive=false;joyId=null;stick.style.transform='translate(0,0)';state.moveX=0;state.moveZ=0}
+joy.addEventListener('pointerdown',joyStart);joy.addEventListener('pointermove',joyMove);joy.addEventListener('pointerup',joyEnd);joy.addEventListener('pointercancel',joyEnd);
+window.addEventListener('keydown',e=>{state.keys[e.key.toLowerCase()]=true;if(e.key===' '){e.preventDefault();attack()}});window.addEventListener('keyup',e=>state.keys[e.key.toLowerCase()]=false);
+const clock=new THREE.Clock();const cameraOffset=new THREE.Vector3(12,16,12);
+function animate(){
+ requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.05);
+ let mx=state.moveX,mz=state.moveZ;
+ if(state.keys.w||state.keys.arrowup)mz-=1;if(state.keys.s||state.keys.arrowdown)mz+=1;if(state.keys.a||state.keys.arrowleft)mx-=1;if(state.keys.d||state.keys.arrowright)mx+=1;
+ const len=Math.hypot(mx,mz);if(len>1){mx/=len;mz/=len}
+ if(len>.08){const speed=4.2;player.position.x+=mx*speed*dt;player.position.z+=mz*speed*dt;player.rotation.y=Math.atan2(mx,mz)}
+ player.position.x=THREE.MathUtils.clamp(player.position.x,-18,18);player.position.z=THREE.MathUtils.clamp(player.position.z,-20,18);
+ state.attackCooldown=Math.max(0,state.attackCooldown-dt);
+ for(const m of monsters){
+  if(m.alive){const d=m.group.position.distanceTo(player.position);m.group.position.y=Math.sin(performance.now()*.003+m.group.position.x)*.035;
+   if(d<5){const dir=new THREE.Vector3().subVectors(player.position,m.group.position);dir.y=0;dir.normalize();m.group.position.addScaledVector(dir,dt*.65);m.group.lookAt(player.position.x,0,player.position.z)}
+   if(d<1.35){m.attackTimer+=dt;if(m.attackTimer>1.5){m.attackTimer=0;state.hp=Math.max(0,state.hp-5);ui();if(state.hp===0){state.hp=state.maxHp;player.position.set(0,0,3);toast('Yenildin! Başlangıç noktasına döndün');ui()}}}
+  }else{m.respawn-=dt;if(m.respawn<=0){m.hp=m.max;m.bar.scale.x=1;m.group.visible=true;m.alive=true;m.group.position.set((Math.random()-.5)*10,0,(Math.random()-.5)*15-2)}}
+ }
+ const targetCam=player.position.clone().add(cameraOffset);camera.position.lerp(targetCam,1-Math.pow(.001,dt));camera.lookAt(player.position.x,0,player.position.z);
+ portal.rotation.y+=dt*.25;ring.rotation.z=Math.sin(performance.now()*.001)*.08;
+ renderer.render(scene,camera);
+}
+animate();ui();
+addEventListener('resize',()=>{const aspect=innerWidth/innerHeight;const h=8;camera.left=-h*aspect/2;camera.right=h*aspect/2;camera.top=h/2;camera.bottom=-h/2;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+</script>
+</body>
+</html>
